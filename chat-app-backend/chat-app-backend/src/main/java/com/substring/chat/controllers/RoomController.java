@@ -22,20 +22,20 @@ public class RoomController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createRoom(@RequestBody String roomid) {
-        if(roomRepository.findByRoomId(roomid) != null){
+    public ResponseEntity<?> createRoom(@RequestBody String roomId) {
+        if(roomRepository.findByRoomId(roomId) != null){
             return ResponseEntity.badRequest().body("Room already exists");
         }
 
         Room room = new Room();
-        room.setRoomId(roomid);
+        room.setRoomId(roomId);
         roomRepository.save(room);
         return ResponseEntity.status(HttpStatus.CREATED).body(room);
     }
 
-    @GetMapping("/{roomid}")
-    public ResponseEntity<?> joinRoom(@PathVariable String roomid) {
-        Room room = roomRepository.findByRoomId(roomid);
+    @GetMapping("/{roomId}")
+    public ResponseEntity<?> joinRoom(@PathVariable String roomId) {
+        Room room = roomRepository.findByRoomId(roomId);
 
         if(room == null) {
             return ResponseEntity.badRequest().body("Room does not exist");
@@ -44,12 +44,12 @@ public class RoomController {
         return ResponseEntity.ok(room);
     }
 
-    @GetMapping("/{roomid}/messages")
-    public ResponseEntity<List<Message>> getMessages(@PathVariable String roomid,
+    @GetMapping("/{roomId}/messages")
+    public ResponseEntity<List<Message>> getMessages(@PathVariable String roomId,
                                                      @RequestParam(value = "page", defaultValue = "0", required = false) int page,
                                                      @RequestParam(value = "size", defaultValue = "20", required = false) int size) {
 
-        Room room = roomRepository.findByRoomId(roomid);
+        Room room = roomRepository.findByRoomId(roomId);
         if(room == null) {
             return ResponseEntity.badRequest().build();
         }
@@ -60,7 +60,7 @@ public class RoomController {
 
         List<Message> paginatedMessages = messages.subList(start, end);
 
-        return ResponseEntity.ok(messages);
+        return ResponseEntity.ok(paginatedMessages);
     }
 
 }

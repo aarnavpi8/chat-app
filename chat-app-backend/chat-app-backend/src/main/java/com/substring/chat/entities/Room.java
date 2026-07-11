@@ -22,5 +22,5 @@ public class Room {
     private String id;
     private String roomId;
 
-    private List<Message> messages = new ArrayList<Message>();
+    private List<Message> messages = new ArrayList<>();
 }
