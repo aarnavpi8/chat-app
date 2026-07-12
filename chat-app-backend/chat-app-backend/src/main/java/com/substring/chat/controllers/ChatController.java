@@ -33,7 +33,7 @@ public class ChatController {
         Room room = roomRepository.findByRoomId(roomId);
 
         Message message = new Message();
-        message.setContent(request.getContent());
+        message.setEncryptedContents(request.getEncryptedContents());
         message.setSender(request.getSender());
         message.setTimeStamp(LocalDateTime.now());
 

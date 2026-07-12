@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Setter
 @Getter
@@ -15,7 +16,7 @@ import java.time.LocalDateTime;
 
 public class MessageRequest {
 
-    private String content;
+    Map<String, String> encryptedContents;
     private String sender;
     private String roomid;
 

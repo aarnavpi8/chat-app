@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -15,12 +16,12 @@ import java.time.LocalDateTime;
 public class Message {
 
     private String sender;
-    private String content;
+    private Map<String, String> encryptedContents;
     private LocalDateTime TimeStamp;
 
-    public Message(String sender, String content) {
+    public Message(String sender, Map<String, String> encryptedContents) {
         this.sender = sender;
-        this.content = content;
+        this.encryptedContents = encryptedContents;
         this.TimeStamp = LocalDateTime.now();
     }
 }
