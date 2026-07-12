@@ -23,25 +23,22 @@ let myPublicKey = '';
 let myPrivateKey = '';
 let publicDirectory = {};
 
-// --- INITIALIZATION ---
-rl.question('\nWelcome to the Terminal Chat! Enter your username: ', (ans) => {
+
+rl.question('\nEnter your username: ', (ans) => {
     const enteredName = ans.trim();
     if (!enteredName) {
-        console.log("❌ Username cannot be empty.");
+        console.log("Username cannot be empty.");
         process.exit(1);
     }
     registerOrLogin(enteredName);
 });
 
-// --- NEW AUTHENTICATION & KEY EXCHANGE FUNCTION ---
 async function registerOrLogin(name) {
     try {
-        // 1. Generate the fresh E2EE key pair locally
         loadOrGenerateKeys(name);
 
-        console.log("📡 Connecting to server and uploading Public Key...");
+        console.log("[uploading key]");
 
-        // 2. Post the username and padlock to the new UserController
         const response = await fetch(`${USER_API}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -52,19 +49,18 @@ async function registerOrLogin(name) {
         });
 
         const userData = await response.json();
-        username = userData.username; // Lock in the official username from MongoDB
+        username = userData.username;
 
         if (response.status === 201) {
-            console.log(`\n🎉 New encrypted account created for: ${username}`);
+            console.log(`\n${username} registered`);
         } else {
-            console.log(`\n✅ Welcome back, ${username}!`);
+            console.log(`\nWelcome back, ${username}`);
         }
 
-        // 3. Kick off the main lobby menu
         showMainMenu();
 
     } catch (err) {
-        console.error('❌ Could not connect to authentication server. Is Spring Boot running?', err);
+        console.error('could not connect to server', err);
         process.exit(1);
     }
 }
@@ -95,83 +91,73 @@ function showMainMenu() {
     });
 }
 
-// --- REST API: CREATE ROOM ---
+
 async function createRoom(roomId) {
     try {
         const response = await fetch(API_BASE, {
             method: 'POST',
-            headers: { 'Content-Type': 'text/plain' }, // Because your Spring controller takes @RequestBody String
+            headers: { 'Content-Type': 'text/plain' },
             body: roomId
         });
 
         if (response.status === 201 || response.status === 200) {
-            console.log(`\n✅ Room '${roomId}' created successfully!`);
+            console.log(`\nRoom '${roomId}' created`);
             connectToChat(roomId);
         } else {
-            console.log(`\n❌ Failed to create room. It might already exist.`);
+            console.log(`\nRoom already exists`);
             showMainMenu();
         }
     } catch (err) {
-        console.error('Network error communicating with the server.', err);
+        console.error('Server communication error', err);
         showMainMenu();
     }
 }
 
-// --- REST API: JOIN ROOM & LOAD HISTORY ---
+
 async function joinRoom(roomId) {
     try {
         // 1. Verify the room exists
         const response = await fetch(`${API_BASE}/${roomId}`);
 
         if (response.status === 200) {
-            console.log(`\n✅ Room '${roomId}' found. Loading history...`);
+            console.log(`\nRoom '${roomId}' found`);
 
-            // 2. Fetch the message history (defaults to the last 20 messages)
+
             const historyResponse = await fetch(`${API_BASE}/${roomId}/messages`);
 
             if (historyResponse.status === 200) {
                 const history = await historyResponse.json();
 
-                console.log('\nMessage History');
-
                 if (history.length === 0) {
                     console.log(" (No previous messages in this room)");
                 } else {
-                    let readableCount = 0; // Keep track of messages we can actually read
+                    let readableCount = 0;
 
                     history.forEach(msg => {
                         const displayName = (msg.sender === username) ? "You" : msg.sender;
 
-                        // Only process and print the message if we have a lock for it
                         if (msg.encryptedContents && msg.encryptedContents[username]) {
                             const plaintext = decryptMyMessage(msg.encryptedContents[username]);
                             console.log(`[${displayName}]: ${plaintext}`);
                             readableCount++;
                         }
-                        // Notice we completely removed the "else" block!
-                        // Unreadable messages are now silently ignored.
                     });
 
-                    // If they are a first-time joiner, they won't have read anything
-                    if (readableCount === 0) {
-                        console.log(" (No readable history for new participants)");
-                    }
                 }
             }
 
-            // 3. Start the live WebSocket connection
             connectToChat(roomId);
         } else {
-            console.log(`\n❌ Room '${roomId}' does not exist.`);
+            console.log(`\nRoom '${roomId}' does not exist.`);
             showMainMenu();
         }
     } catch (err) {
-        console.error('Network error communicating with the server.', err);
+        console.error('error communicating with the server.', err);
         showMainMenu();
     }
 }
 
-// --- WEBSOCKET: CHAT MODE ---
+
 function connectToChat(roomId) {
     currentRoom = roomId;
 
@@ -179,29 +165,27 @@ function connectToChat(roomId) {
         stompClient = new Client({
             brokerURL: WS_URL,
             onConnect: () => setupRoomSubscription(roomId),
-            onStompError: (frame) => console.error('Broker error: ' + frame.body)
+            onStompError: (frame) => console.error(frame.body)
         });
         stompClient.activate();
     } else {
-        // Re-using the existing connection if we just switched rooms
         setupRoomSubscription(roomId);
     }
 }
 
 async function setupRoomSubscription(roomId) {
-    console.log(`\n--- You are now in Room [${roomId}] ---`);
-    console.log("Downloading public keys for E2EE...");
+    console.log(`\n[logged into Room [${roomId}]]`);
+    // console.log("Downloading public keys for E2EE...");
 
-    // Fetch the directory
     try {
         const usersResponse = await fetch(USER_API);
         const users = await usersResponse.json();
         users.forEach(u => {
             if (u.publicKey) publicDirectory[u.username] = u.publicKey;
         });
-        console.log(`✅ Loaded ${Object.keys(publicDirectory).length} public keys.`);
+        // console.log(`Loaded ${Object.keys(publicDirectory).length} public keys.`);
     } catch (e) {
-        console.log("Failed to load keys. Chat may not work.");
+        console.log("Failed to load keys");
     }
 
     roomSubscription = stompClient.subscribe(`/topic/room/${roomId}`, (message) => {
@@ -211,7 +195,6 @@ async function setupRoomSubscription(roomId) {
             process.stdout.clearLine();
             process.stdout.cursorTo(0);
 
-            // Look for our specific lock in the dictionary
             const myEncryptedText = data.encryptedContents ? data.encryptedContents[username] : null;
 
             if (myEncryptedText) {
@@ -230,7 +213,6 @@ async function setupRoomSubscription(roomId) {
     rl.prompt();
 }
 
-// Add 'async' to the function definition
 async function handleChatInput(line) {
     const text = line.trim();
     if (text === '/leave') {
@@ -240,8 +222,6 @@ async function handleChatInput(line) {
         showMainMenu();
     } else if (text) {
 
-        // --- NEW: QUICK DIRECTORY REFRESH ---
-        // Always grab the latest keys right before sending so we don't miss new users
         try {
             const usersResponse = await fetch(USER_API);
             if (usersResponse.ok) {
@@ -253,11 +233,9 @@ async function handleChatInput(line) {
                 });
             }
         } catch (e) {
-            // Silently fail and use the cached directory if the server hiccups
-        }
-        // ------------------------------------
 
-        // Scramble the message for everyone in the refreshed directory
+        }
+
         const encryptedPackage = encryptMessageForEveryone(text);
 
         stompClient.publish({
@@ -274,26 +252,18 @@ async function handleChatInput(line) {
 }
 
 function loadOrGenerateKeys(name) {
-    // 1. Define the dedicated folder path
-    const keysDir = './keys';
 
-    // 2. Create the folder automatically if it doesn't exist
+    const keysDir = './keys';
     if (!fs.existsSync(keysDir)) {
         fs.mkdirSync(keysDir, { recursive: true });
     }
-
-    // 3. Route the key file inside the new folder
     const keyFileName = `${keysDir}/${name}_keys.json`;
 
     if (fs.existsSync(keyFileName)) {
-        // If the file exists, load the saved keys from the hard drive
-        console.log(`\n🔑 Found saved keys for ${name}. Loading from disk...`);
         const keyData = JSON.parse(fs.readFileSync(keyFileName, 'utf8'));
         myPublicKey = keyData.publicKey;
         myPrivateKey = keyData.privateKey;
     } else {
-        // If no file exists, generate new keys and save them
-        console.log('\n🔒 Generating your fresh E2EE key pair...');
         const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
             modulusLength: 2048,
             publicKeyEncoding: { type: 'spki', format: 'pem' },
@@ -303,9 +273,7 @@ function loadOrGenerateKeys(name) {
         myPublicKey = publicKey;
         myPrivateKey = privateKey;
 
-        // Save the keys locally into the keys folder
         fs.writeFileSync(keyFileName, JSON.stringify({ publicKey, privateKey }));
-        console.log(`💾 Keys securely saved to disk at ${keyFileName}`);
     }
 }
 function encryptMessageForEveryone(plaintext) {
@@ -318,7 +286,6 @@ function encryptMessageForEveryone(plaintext) {
             );
             encryptedMap[targetUser] = encryptedBuffer.toString('base64');
         } catch (err) {
-            // Skip invalid keys quietly
         }
     }
     return encryptedMap;
