@@ -23,30 +23,62 @@ let myPublicKey = '';
 let myPrivateKey = '';
 let publicDirectory = {};
 
+const askQuestion = (query) => new Promise(resolve => rl.question(query, resolve));
 
-rl.question('\nEnter your username: ', (ans) => {
-    const enteredName = ans.trim();
-    if (!enteredName) {
-        console.log("Username cannot be empty.");
+async function startApp() {
+    const enteredName = await askQuestion('Enter your username: ');
+    if(!enteredName.trim()) {
+        console.log('Username cannot be empty.');
         process.exit(1);
     }
-    registerOrLogin(enteredName);
-});
+    await registerOrLogin(enteredName.trim());
+}
+
+startApp();
 
 async function registerOrLogin(name) {
     try {
+        const usersResponse = await fetch(USER_API);
+        const users = await usersResponse.json();
+        const userExists = users.some(u => u.username === name);
+
+        let userPassword = '';
+        if (userExists) {
+            userPassword = await askQuestion('Enter password: ');
+        } else {
+            console.log('Account does not exist.');
+            console.log(`Registering ${name}`);
+            const password1 = await askQuestion('Create password: ');
+            const password2 = await askQuestion('Retype password: ');
+
+            if(password1.trim() !== password2.trim()){
+                console.log('Passwords do not match');
+                process.exit(1);
+            }
+
+            userPassword = password1;
+        }
+
         loadOrGenerateKeys(name);
 
-        console.log("[uploading key]");
+        const encryptedUserPassword = crypto.createHash('sha256')
+            .update(userPassword)
+            .digest('hex');
 
         const response = await fetch(`${USER_API}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 username: name,
-                publicKey: myPublicKey
+                publicKey: myPublicKey,
+                password: encryptedUserPassword
             })
         });
+
+        if (response.status === 401) {
+            console.log('Incorrect password.');
+            process.exit(1);
+        }
 
         const userData = await response.json();
         username = userData.username;
@@ -60,12 +92,11 @@ async function registerOrLogin(name) {
         showMainMenu();
 
     } catch (err) {
-        console.error('could not connect to server', err);
+        console.error('Could not login', err);
         process.exit(1);
     }
 }
 
-// --- THE LOBBY ---
 function showMainMenu() {
     console.log(`   LOBBY (Logged in as ${username})`);
     console.log(' ');
@@ -175,7 +206,7 @@ function connectToChat(roomId) {
 
 async function setupRoomSubscription(roomId) {
     console.log(`\n[logged into Room [${roomId}]]`);
-    // console.log("Downloading public keys for E2EE...");
+
 
     try {
         const usersResponse = await fetch(USER_API);
@@ -183,7 +214,7 @@ async function setupRoomSubscription(roomId) {
         users.forEach(u => {
             if (u.publicKey) publicDirectory[u.username] = u.publicKey;
         });
-        // console.log(`Loaded ${Object.keys(publicDirectory).length} public keys.`);
+
     } catch (e) {
         console.log("Failed to load keys");
     }

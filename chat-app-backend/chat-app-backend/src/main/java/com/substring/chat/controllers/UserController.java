@@ -27,12 +27,17 @@ public class UserController {
         User existingUser = userRepository.findByUsername(cleanUsername);
 
         if (existingUser != null) {
+            if(!existingUser.getPassword().equals(request.getPassword())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Incorrect password");
+            }
+
             existingUser.setPublicKey(request.getPublicKey());
             userRepository.save(existingUser);
             return ResponseEntity.ok(existingUser);
         }
 
         User newUser = new User(cleanUsername, request.getPublicKey());
+        newUser.setPassword(request.getPassword());
         userRepository.save(newUser);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(newUser);
