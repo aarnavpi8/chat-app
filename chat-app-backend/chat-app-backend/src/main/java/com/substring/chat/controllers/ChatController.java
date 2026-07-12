@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import java.time.LocalDateTime;
 
 @Controller
-@CrossOrigin("http://localhost:1337") // Note: This doesn't actually affect WebSockets, but it won't hurt anything!
 public class ChatController {
 
     private RoomRepository roomRepository;
@@ -26,10 +25,10 @@ public class ChatController {
     @MessageMapping("/sendMessage/{roomId}")
     @SendTo("/topic/room/{roomId}")
     public Message sendMessage(
-            @DestinationVariable("roomId") String roomId, // Explicit binding
-            @Payload MessageRequest request // Changed from @RequestBody to @Payload
+            @DestinationVariable("roomId") String roomId,
+            @Payload MessageRequest request
     ){
-        // Use the roomId from the URL path, not the payload!
+
         Room room = roomRepository.findByRoomId(roomId);
 
         Message message = new Message();
