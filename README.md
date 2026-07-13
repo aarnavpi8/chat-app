@@ -1,5 +1,5 @@
 
-# Terminal Chat Application
+# E2E Encrypted Messenger Application
 
 A secure, terminal-based real-time chat application featuring a Java Spring Boot backend and a Node.js command-line interface. The architecture is designed to be lightweight and strictly prioritizes user privacy through local cryptography.
 
